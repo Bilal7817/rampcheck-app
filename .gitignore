@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Python
+backend/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/venv/
+backend/*.db
+backend/*.sqlite
+
+# Flutter
+rampcheck_flutter/.dart_tool/
+rampcheck_flutter/.flutter-plugins
+rampcheck_flutter/.flutter-plugins-dependencies
+rampcheck_flutter/.packages
+rampcheck_flutter/build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
