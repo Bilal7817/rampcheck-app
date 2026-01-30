@@ -4,7 +4,7 @@ import '../models/job.dart';
 import '../models/inspection_item.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:5000/api/v1';
+  static const String baseUrl = 'http://127.0.0.1:5000/api/v1';
   static const String apiKey = 'api_warehouse_student_key_1234567890abcdef';
 
   Map<String, String> _getHeaders() {

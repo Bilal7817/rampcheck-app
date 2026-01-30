@@ -3,6 +3,7 @@ import '../models/job.dart';
 import '../services/database_helper.dart';
 import 'job_detail_screen.dart';
 import 'add_job_screen.dart';
+import '../services/sync_service.dart';
 
 class JobsListScreen extends StatefulWidget {
   const JobsListScreen({Key? key}) : super(key: key);
@@ -15,6 +16,7 @@ class _JobsListScreenState extends State<JobsListScreen> {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   List<Job> _jobs = [];
   bool _isLoading = true;
+  bool _isSyncing = false;
 
   @override
   void initState() {
@@ -35,6 +37,55 @@ class _JobsListScreenState extends State<JobsListScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading jobs: $e')));
+    }
+  }
+
+  Future<void> _syncData() async {
+    setState(() => _isSyncing = true);
+
+    final syncService = SyncService();
+
+    final hasConnection = await syncService.checkConnection();
+    if (!hasConnection) {
+      setState(() => _isSyncing = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No connection to server. Check your network.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final result = await syncService.syncAll();
+
+      setState(() => _isSyncing = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: result.success ? Colors.green : Colors.orange,
+          ),
+        );
+
+        if (result.success) {
+          _loadJobs();
+        }
+      }
+    } catch (e) {
+      setState(() => _isSyncing = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -71,13 +122,18 @@ class _JobsListScreenState extends State<JobsListScreen> {
         title: const Text('RampCheck - Maintenance Jobs'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.sync),
-            onPressed: () {
-              // TODO: Implement sync
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sync functionality coming soon')),
-              );
-            },
+            icon: _isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.sync),
+            onPressed: _isSyncing ? null : _syncData,
+            tooltip: 'Sync with server',
           ),
         ],
       ),
