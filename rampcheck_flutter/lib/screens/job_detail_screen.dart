@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/job.dart';
 import '../models/inspection_item.dart';
 import '../services/database_helper.dart';
+import 'add_inspection_item_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final int jobId;
 
-  const JobDetailScreen({Key? key, required this.jobId}) : super(key: key);
+  const JobDetailScreen({super.key, required this.jobId});
 
   @override
   State<JobDetailScreen> createState() => _JobDetailScreenState();
@@ -36,9 +37,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading job details: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading job details: $e')),
+        );
+      }
     }
   }
 
@@ -53,9 +56,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       await _dbHelper.updateInspectionItem(updatedItem);
       _loadJobDetails();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error updating item: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error updating item: $e')));
+      }
     }
   }
 
@@ -70,13 +75,17 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       );
       await _dbHelper.updateJob(updatedJob);
       _loadJobDetails();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Job status updated to $newStatus')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Job status updated to $newStatus')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error updating status: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error updating status: $e')));
+      }
     }
   }
 
@@ -227,10 +236,33 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   if (_inspectionItems.isEmpty)
-                    const Center(
+                    Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text('No inspection items yet'),
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            const Text('No inspection items yet'),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        AddInspectionItemScreen(
+                                          jobId: widget.jobId,
+                                        ),
+                                  ),
+                                );
+                                if (result == true) {
+                                  _loadJobDetails();
+                                }
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add First Item'),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   else
@@ -264,6 +296,23 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           ],
         ),
       ),
+      floatingActionButton: _inspectionItems.isNotEmpty
+          ? FloatingActionButton(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AddInspectionItemScreen(jobId: widget.jobId),
+                  ),
+                );
+                if (result == true) {
+                  _loadJobDetails();
+                }
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
