@@ -3,6 +3,7 @@ import '../models/job.dart';
 import '../models/inspection_item.dart';
 import '../services/database_helper.dart';
 import 'add_inspection_item_screen.dart';
+import 'edit_job_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final int jobId;
@@ -126,6 +127,21 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       appBar: AppBar(
         title: const Text('Job Details'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditJobScreen(job: _job!),
+                ),
+              );
+              if (result == true) {
+                _loadJobDetails();
+              }
+            },
+            tooltip: 'Edit Job',
+          ),
           PopupMenuButton<String>(
             onSelected: _updateJobStatus,
             itemBuilder: (context) => [
@@ -273,19 +289,72 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       itemBuilder: (context, index) {
                         final item = _inspectionItems[index];
                         return Card(
-                          child: CheckboxListTile(
+                          child: ListTile(
+                            leading: Checkbox(
+                              value: item.isCompleted,
+                              onChanged: (value) => _toggleInspectionItem(item),
+                            ),
                             title: Text(item.title),
                             subtitle: item.description != null
                                 ? Text(item.description!)
                                 : null,
-                            value: item.isCompleted,
-                            onChanged: (value) => _toggleInspectionItem(item),
-                            secondary: item.isCompleted
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                  )
-                                : const Icon(Icons.radio_button_unchecked),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'delete') {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Delete Item'),
+                                      content: const Text(
+                                        'Are you sure you want to delete this inspection item?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                          ),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    await _dbHelper.deleteInspectionItem(
+                                      item.id!,
+                                    );
+                                    _loadJobDetails();
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Item deleted'),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Text('Delete'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
