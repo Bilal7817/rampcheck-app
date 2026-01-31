@@ -6,7 +6,7 @@ import 'add_job_screen.dart';
 import '../services/sync_service.dart';
 
 class JobsListScreen extends StatefulWidget {
-  const JobsListScreen({Key? key}) : super(key: key);
+  const JobsListScreen({super.key});
 
   @override
   State<JobsListScreen> createState() => _JobsListScreenState();
@@ -119,7 +119,13 @@ class _JobsListScreenState extends State<JobsListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RampCheck - Maintenance Jobs'),
+        title: Row(
+          children: [
+            Image.asset('assets/images/rampcheck_logo.png', height: 40),
+            const SizedBox(width: 12),
+            const Text('RampCheck - Maintenance Jobs'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: _isSyncing
@@ -144,8 +150,11 @@ class _JobsListScreenState extends State<JobsListScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.engineering, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
+                  Image.asset(
+                    'assets/images/rampcheck_logo.png',
+                    width: 120,
+                    height: 120,
+                  ),
                   Text(
                     'No maintenance jobs yet',
                     style: TextStyle(fontSize: 18, color: Colors.grey[600]),
