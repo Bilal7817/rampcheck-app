@@ -2,10 +2,12 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/job.dart';
 import '../models/inspection_item.dart';
+import '../models/attachment.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+  static const int _databaseVersion = 2;
 
   DatabaseHelper._init();
 
@@ -19,7 +21,12 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: _databaseVersion,
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -55,8 +62,39 @@ class DatabaseHelper {
         FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE attachments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id INTEGER NOT NULL,
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_type TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        needs_sync INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
+      )
+    ''');
   }
 
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE attachments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_id INTEGER NOT NULL,
+          file_name TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          file_type TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          needs_sync INTEGER NOT NULL DEFAULT 1,
+          FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
+        )
+      ''');
+    }
+  }
+
+  // Jobs CRUD
   Future<int> createJob(Job job) async {
     final db = await database;
     return await db.insert('jobs', job.toMap());
@@ -90,6 +128,7 @@ class DatabaseHelper {
     return await db.delete('jobs', where: 'id = ?', whereArgs: [id]);
   }
 
+  // Inspection Items CRUD
   Future<int> createInspectionItem(InspectionItem item) async {
     final db = await database;
     return await db.insert('inspection_items', item.toMap());
@@ -125,6 +164,39 @@ class DatabaseHelper {
     );
   }
 
+  // Attachments CRUD
+  Future<int> createAttachment(Attachment attachment) async {
+    final db = await database;
+    return await db.insert('attachments', attachment.toMap());
+  }
+
+  Future<List<Attachment>> getAttachmentsForJob(int jobId) async {
+    final db = await database;
+    final maps = await db.query(
+      'attachments',
+      where: 'job_id = ?',
+      whereArgs: [jobId],
+      orderBy: 'created_at DESC',
+    );
+    return maps.map((map) => Attachment.fromMap(map)).toList();
+  }
+
+  Future<int> deleteAttachment(int id) async {
+    final db = await database;
+    return await db.delete('attachments', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Attachment>> getAttachmentsNeedingSync() async {
+    final db = await database;
+    final maps = await db.query(
+      'attachments',
+      where: 'needs_sync = ?',
+      whereArgs: [1],
+    );
+    return maps.map((map) => Attachment.fromMap(map)).toList();
+  }
+
+  // Sync
   Future<List<Job>> getJobsNeedingSync() async {
     final db = await database;
     final maps = await db.query(

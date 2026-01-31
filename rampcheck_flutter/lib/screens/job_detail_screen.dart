@@ -4,6 +4,12 @@ import '../models/inspection_item.dart';
 import '../services/database_helper.dart';
 import 'add_inspection_item_screen.dart';
 import 'edit_job_screen.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path_helper;
+import '../models/attachment.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final int jobId;
@@ -18,6 +24,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   Job? _job;
   List<InspectionItem> _inspectionItems = [];
+  List<Attachment> _attachments = [];
   bool _isLoading = true;
 
   @override
@@ -31,9 +38,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     try {
       final job = await _dbHelper.getJob(widget.jobId);
       final items = await _dbHelper.getInspectionItemsForJob(widget.jobId);
+      final attachments = await _dbHelper.getAttachmentsForJob(widget.jobId);
       setState(() {
         _job = job;
         _inspectionItems = items;
+        _attachments = attachments;
         _isLoading = false;
       });
     } catch (e) {
@@ -86,6 +95,126 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error updating status: $e')));
+      }
+    }
+  }
+
+  Future<void> _addPhotoAttachment() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${path_helper.basename(image.path)}';
+      final savedPath = path_helper.join(appDir.path, 'attachments', fileName);
+
+      await Directory(path_helper.dirname(savedPath)).create(recursive: true);
+      await File(image.path).copy(savedPath);
+
+      final attachment = Attachment(
+        jobId: widget.jobId,
+        fileName: fileName,
+        filePath: savedPath,
+        fileType: 'image',
+        createdAt: DateTime.now(),
+      );
+
+      await _dbHelper.createAttachment(attachment);
+      _loadJobDetails();
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Photo attached')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error attaching photo: $e')));
+      }
+    }
+  }
+
+  Future<void> _addFileAttachment() async {
+    final result = await FilePicker.platform.pickFiles();
+
+    if (result == null) return;
+
+    try {
+      final file = File(result.files.single.path!);
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${result.files.single.name}';
+      final savedPath = path_helper.join(appDir.path, 'attachments', fileName);
+
+      await Directory(path_helper.dirname(savedPath)).create(recursive: true);
+      await file.copy(savedPath);
+
+      final attachment = Attachment(
+        jobId: widget.jobId,
+        fileName: fileName,
+        filePath: savedPath,
+        fileType: 'document',
+        createdAt: DateTime.now(),
+      );
+
+      await _dbHelper.createAttachment(attachment);
+      _loadJobDetails();
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('File attached')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error attaching file: $e')));
+      }
+    }
+  }
+
+  Future<void> _deleteAttachment(Attachment attachment) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Attachment'),
+        content: const Text('Are you sure you want to delete this attachment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await File(attachment.filePath).delete();
+        await _dbHelper.deleteAttachment(attachment.id!);
+        _loadJobDetails();
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Attachment deleted')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting attachment: $e')),
+          );
+        }
       }
     }
   }
@@ -362,9 +491,93 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 ],
               ),
             ),
+            // Attachments Section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Attachments',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.camera_alt),
+                            onPressed: _addPhotoAttachment,
+                            tooltip: 'Add Photo',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.attach_file),
+                            onPressed: _addFileAttachment,
+                            tooltip: 'Add File',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_attachments.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('No attachments yet'),
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _attachments.length,
+                      itemBuilder: (context, index) {
+                        final attachment = _attachments[index];
+                        return Card(
+                          child: ListTile(
+                            leading: Icon(
+                              attachment.fileType == 'image'
+                                  ? Icons.image
+                                  : Icons.insert_drive_file,
+                              color: Colors.blue,
+                            ),
+                            title: Text(attachment.fileName),
+                            subtitle: Text(
+                              'Added ${attachment.createdAt.toString().split('.')[0]}',
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteAttachment(attachment),
+                            ),
+                            onTap: attachment.fileType == 'image'
+                                ? () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => Dialog(
+                                        child: Image.file(
+                                          File(attachment.filePath),
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
+
       floatingActionButton: _inspectionItems.isNotEmpty
           ? FloatingActionButton(
               onPressed: () async {
