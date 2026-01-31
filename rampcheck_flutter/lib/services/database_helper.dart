@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import '../models/job.dart';
 import '../models/inspection_item.dart';
 import '../models/attachment.dart';
+import 'performance_monitor.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -96,31 +97,39 @@ class DatabaseHelper {
 
   // Jobs CRUD
   Future<int> createJob(Job job) async {
-    final db = await database;
-    return await db.insert('jobs', job.toMap());
+    return PerformanceMonitor.measure('DB: createJob', () async {
+      final db = await database;
+      return await db.insert('jobs', job.toMap());
+    });
   }
 
   Future<List<Job>> getAllJobs() async {
-    final db = await database;
-    final maps = await db.query('jobs', orderBy: 'created_at DESC');
-    return maps.map((map) => Job.fromMap(map)).toList();
+    return PerformanceMonitor.measure('DB: getAllJobs', () async {
+      final db = await database;
+      final maps = await db.query('jobs', orderBy: 'created_at DESC');
+      return maps.map((map) => Job.fromMap(map)).toList();
+    });
   }
 
   Future<Job?> getJob(int id) async {
-    final db = await database;
-    final maps = await db.query('jobs', where: 'id = ?', whereArgs: [id]);
-    if (maps.isEmpty) return null;
-    return Job.fromMap(maps.first);
+    return PerformanceMonitor.measure('DB: getJob', () async {
+      final db = await database;
+      final maps = await db.query('jobs', where: 'id = ?', whereArgs: [id]);
+      if (maps.isEmpty) return null;
+      return Job.fromMap(maps.first);
+    });
   }
 
   Future<int> updateJob(Job job) async {
-    final db = await database;
-    return await db.update(
-      'jobs',
-      job.toMap(),
-      where: 'id = ?',
-      whereArgs: [job.id],
-    );
+    return PerformanceMonitor.measure('DB: updateJob', () async {
+      final db = await database;
+      return await db.update(
+        'jobs',
+        job.toMap(),
+        where: 'id = ?',
+        whereArgs: [job.id],
+      );
+    });
   }
 
   Future<int> deleteJob(int id) async {
@@ -135,14 +144,16 @@ class DatabaseHelper {
   }
 
   Future<List<InspectionItem>> getInspectionItemsForJob(int jobId) async {
-    final db = await database;
-    final maps = await db.query(
-      'inspection_items',
-      where: 'job_id = ?',
-      whereArgs: [jobId],
-      orderBy: 'created_at ASC',
-    );
-    return maps.map((map) => InspectionItem.fromMap(map)).toList();
+    return PerformanceMonitor.measure('DB: getInspectionItemsForJob', () async {
+      final db = await database;
+      final maps = await db.query(
+        'inspection_items',
+        where: 'job_id = ?',
+        whereArgs: [jobId],
+        orderBy: 'created_at ASC',
+      );
+      return maps.map((map) => InspectionItem.fromMap(map)).toList();
+    });
   }
 
   Future<int> updateInspectionItem(InspectionItem item) async {
