@@ -17,6 +17,7 @@ class _JobsListScreenState extends State<JobsListScreen> {
   List<Job> _jobs = [];
   bool _isLoading = true;
   bool _isSyncing = false;
+  String _selectedFilter = 'all';
 
   @override
   void initState() {
@@ -121,6 +122,19 @@ class _JobsListScreenState extends State<JobsListScreen> {
         ),
       ),
     );
+  }
+
+  List<Job> get _filteredJobs {
+    switch (_selectedFilter) {
+      case 'open':
+        return _jobs.where((j) => j.status == 'open').toList();
+      case 'in_progress':
+        return _jobs.where((j) => j.status == 'in_progress').toList();
+      case 'completed':
+        return _jobs.where((j) => j.status == 'completed').toList();
+      default:
+        return _jobs;
+    }
   }
 
   Color _getPriorityColor(String priority) {
@@ -281,9 +295,52 @@ class _JobsListScreenState extends State<JobsListScreen> {
                     ],
                   ),
                 ),
+                // Filter Dropdown
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Filter: ',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: _selectedFilter,
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'all',
+                              child: Text('All Jobs'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'open',
+                              child: Text('Open Only'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'in_progress',
+                              child: Text('In Progress Only'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'completed',
+                              child: Text('Completed Only'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _selectedFilter = value!);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // Jobs List
                 Expanded(
-                  child: _jobs.isEmpty
+                  child: _filteredJobs.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -313,7 +370,7 @@ class _JobsListScreenState extends State<JobsListScreen> {
                           onRefresh: _loadJobs,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
-                            itemCount: _jobs.length,
+                            itemCount: _filteredJobs.length,
                             itemBuilder: (context, index) {
                               final job = _jobs[index];
                               return Card(
