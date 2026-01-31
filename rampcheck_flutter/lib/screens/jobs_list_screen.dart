@@ -89,6 +89,40 @@ class _JobsListScreenState extends State<JobsListScreen> {
     }
   }
 
+  Widget _buildStatCard(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _getPriorityColor(String priority) {
     switch (priority.toLowerCase()) {
       case 'high':
@@ -192,103 +226,165 @@ class _JobsListScreenState extends State<JobsListScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _jobs.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/rampcheck_logo.png',
-                    width: 120,
-                    height: 120,
-                  ),
-                  Text(
-                    'No maintenance jobs yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap + to create your first job',
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadJobs,
-              child: ListView.builder(
-                itemCount: _jobs.length,
-                itemBuilder: (context, index) {
-                  final job = _jobs[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: _getPriorityColor(job.priority),
-                        child: Text(
-                          job.priority[0].toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
+          : Column(
+              children: [
+                // Stats Dashboard
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Colors.grey[100],
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Jobs',
+                          _jobs.length.toString(),
+                          Colors.blue,
+                          Icons.work,
                         ),
                       ),
-                      title: Text(
-                        job.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Open',
+                          _jobs
+                              .where((j) => j.status == 'open')
+                              .length
+                              .toString(),
+                          Colors.blue[700]!,
+                          Icons.circle,
+                        ),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (job.aircraftRegistration != null)
-                            Text('Aircraft: ${job.aircraftRegistration}'),
-                          const SizedBox(height: 4),
-                          Row(
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          'In Progress',
+                          _jobs
+                              .where((j) => j.status == 'in_progress')
+                              .length
+                              .toString(),
+                          Colors.orange,
+                          Icons.engineering,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Completed',
+                          _jobs
+                              .where((j) => j.status == 'completed')
+                              .length
+                              .toString(),
+                          Colors.green,
+                          Icons.check_circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Jobs List
+                Expanded(
+                  child: _jobs.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(job.status),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  job.status.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                  ),
+                              Image.asset(
+                                'assets/images/rampcheck_logo.png',
+                                width: 120,
+                                height: 120,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No maintenance jobs yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
                                 ),
                               ),
-                              if (job.needsSync == 1) ...[
-                                const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.sync_problem,
-                                  size: 16,
-                                  color: Colors.orange,
-                                ),
-                              ],
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap + to create your first job',
+                                style: TextStyle(color: Colors.grey[500]),
+                              ),
                             ],
                           ),
-                        ],
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                JobDetailScreen(jobId: job.id!),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadJobs,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _jobs.length,
+                            itemBuilder: (context, index) {
+                              final job = _jobs[index];
+                              return Card(
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: _getPriorityColor(
+                                      job.priority,
+                                    ),
+                                    child: Text(
+                                      job.priority[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(job.title),
+                                  subtitle: job.aircraftRegistration != null
+                                      ? Text(
+                                          'Aircraft: ${job.aircraftRegistration}',
+                                        )
+                                      : null,
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _getStatusColor(job.status),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          job.status.toUpperCase(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (job.needsSync == 1)
+                                        const Icon(
+                                          Icons.sync,
+                                          color: Colors.orange,
+                                          size: 20,
+                                        ),
+                                      const Icon(Icons.chevron_right),
+                                    ],
+                                  ),
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            JobDetailScreen(jobId: job.id!),
+                                      ),
+                                    );
+                                    _loadJobs();
+                                  },
+                                ),
+                              );
+                            },
                           ),
-                        );
-                        _loadJobs();
-                      },
-                    ),
-                  );
-                },
-              ),
+                        ),
+                ),
+              ],
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
